@@ -25,7 +25,6 @@ public class HttpProxyServer {
             while (!stop) {
                 Socket originConnection = server.accept();
                 System.out.println("Opened origin: " + originConnection);
-                Socket remoteConnection = new Socket();
                 originConnection.setSoTimeout(TIMEOUT);
                 CompletableFuture.runAsync(() -> {
                     OriginInfo originInfo = null;
@@ -33,12 +32,13 @@ public class HttpProxyServer {
                     try {
                         BufferedInputStream readerOrigin = new BufferedInputStream(originConnection.getInputStream());
                         int readOrigin;
+                        Socket remoteConnection = new Socket();
                         while ((readOrigin = readerOrigin.read(bufferReadOrigin)) != -1) {
                             if (originInfo == null) {
                                 // It is expected the first time it reads the buffer the host will be there
                                 originInfo = getOriginInfo(bufferReadOrigin);
-                                System.out.println("Opened remote: " + originConnection);
                                 remoteConnection.connect(new InetSocketAddress(originInfo.host, originInfo.port), TIMEOUT);
+                                System.out.println("Opened remote: " + remoteConnection);
                                 CompletableFuture.runAsync(() -> {
                                     byte[] bufferReadRemote = new byte[1024 * 1024];
                                     try {
@@ -55,7 +55,7 @@ public class HttpProxyServer {
                                 }).whenComplete((Void, t) -> {
                                     try {
 //                                        t.printStackTrace();
-                                        System.out.println("Closed remote: " + originConnection);
+                                        System.out.println("Closed remote: " + remoteConnection);
                                         remoteConnection.close();
                                     } catch (IOException e) {
                                         e.printStackTrace();
