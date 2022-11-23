@@ -1,20 +1,23 @@
 package com.github.jbescos.httpproxy;
 
-import java.io.BufferedInputStream;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.MalformedURLException;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 public class HttpProxyServer {
 
-    private static final int TIMEOUT = 10000;
+    private final static Logger LOGGER = Logger.getLogger(HttpProxyServer.class.getName());
+    private static final int TIMEOUT = 5000;
     private static final String HOST = "Host: ";
     private static final byte NEW_LINE = (byte) '\n';
     private final int port;
-    private volatile boolean stop = false;
+    private final AtomicInteger connectionsCount = new AtomicInteger(0);
 
     private HttpProxyServer(int port) {
         this.port = port;
@@ -22,43 +25,43 @@ public class HttpProxyServer {
 
     public void run() throws Exception {
         try (ServerSocket server = new ServerSocket(port)) {
-            while (!stop) {
+            while (true) {
                 Socket originConnection = server.accept();
-                System.out.println("Opened origin: " + originConnection);
+                LOGGER.info("Opened origin: " + originConnection);
+                connectionsCount(true);
                 originConnection.setSoTimeout(TIMEOUT);
                 CompletableFuture.runAsync(() -> {
                     OriginInfo originInfo = null;
                     byte[] bufferReadOrigin = new byte[1024 * 1024];
                     try {
-                        BufferedInputStream readerOrigin = new BufferedInputStream(originConnection.getInputStream());
                         int readOrigin;
                         Socket remoteConnection = new Socket();
-                        while ((readOrigin = readerOrigin.read(bufferReadOrigin)) != -1) {
+                        while ((readOrigin = originConnection.getInputStream().read(bufferReadOrigin)) != -1) {
                             if (originInfo == null) {
                                 // It is expected the first time it reads the buffer the host will be there
                                 originInfo = getOriginInfo(bufferReadOrigin);
-                                remoteConnection.connect(new InetSocketAddress(originInfo.host, originInfo.port), TIMEOUT);
-                                System.out.println("Opened remote: " + remoteConnection);
+                                remoteConnection.connect(new InetSocketAddress(originInfo.host, originInfo.port));
+                                remoteConnection.setSoTimeout(TIMEOUT);
+                                LOGGER.info("Opened remote: " + remoteConnection);
+                                connectionsCount(true);
                                 CompletableFuture.runAsync(() -> {
                                     byte[] bufferReadRemote = new byte[1024 * 1024];
                                     try {
-                                        BufferedInputStream readerRemote = new BufferedInputStream(
-                                                remoteConnection.getInputStream());
                                         int readRemote;
-                                        while ((readRemote = readerRemote.read(bufferReadRemote)) != -1) {
+                                        while ((readRemote = remoteConnection.getInputStream().read(bufferReadRemote)) != -1) {
                                             originConnection.getOutputStream().write(bufferReadRemote, 0, readRemote);
                                             originConnection.getOutputStream().flush();
                                         }
                                     } catch (IOException e) {
-                                        throw new IllegalStateException("Stop remote", e);
-                                    }
-                                }).whenComplete((Void, t) -> {
-                                    try {
-//                                        t.printStackTrace();
-                                        System.out.println("Closed remote: " + remoteConnection);
-                                        remoteConnection.close();
-                                    } catch (IOException e) {
-                                        e.printStackTrace();
+                                        LOGGER.warning(e.getMessage());
+                                    } finally {
+                                        try {
+                                            remoteConnection.close();
+                                            LOGGER.info("Closed remote: " + remoteConnection);
+                                            connectionsCount(false);
+                                        } catch (IOException e) {
+                                            LOGGER.log(Level.SEVERE, "Cannot close remote: " + remoteConnection, e);
+                                        }
                                     }
                                 });
                                 if (originInfo.respondOrigin()) {
@@ -74,21 +77,25 @@ public class HttpProxyServer {
                             remoteConnection.getOutputStream().flush();
                         }
                     } catch (IOException e) {
-                        throw new IllegalStateException("Stop origin", e);
-                    }
-                }).whenComplete((Void, t) -> {
-                    try {
-//                        t.printStackTrace();
-                        System.out.println("Closed origin: " + originConnection);
-                        originConnection.close();
-                    } catch (IOException e) {
-                        e.printStackTrace();
+                        LOGGER.warning(e.getMessage());
+                    } finally {
+                        try {
+                            originConnection.close();
+                            connectionsCount(false);
+                            LOGGER.info("Closed origin: " + originConnection);
+                        } catch (IOException e) {
+                            LOGGER.log(Level.SEVERE, "Cannot close origin: " + originConnection, e);
+                        }
                     }
                 });
             }
         }
     }
 
+    private void connectionsCount(boolean increment) {
+        LOGGER.info("Active connections: " + (increment ? connectionsCount.incrementAndGet() : connectionsCount.decrementAndGet()));
+    }
+    
     private OriginInfo getOriginInfo(byte[] buffer) throws MalformedURLException {
         int readLines = 0;
         StringBuilder builder = new StringBuilder();
