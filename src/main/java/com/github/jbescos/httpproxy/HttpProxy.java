@@ -10,8 +10,9 @@ import java.util.logging.Logger;
 public class HttpProxy {
     
     private static final Logger LOGGER = Logger.getLogger(HttpProxy.class.getName());
-    private static final int TIMEOUT = 60000;
-    private final ExecutorService executor = Executors.newCachedThreadPool();
+    // 10 minutes
+    private static final int TIMEOUT = 600000;
+    private final ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor();
     private volatile boolean stop = false;
 
     public void start(int port) throws IOException {
@@ -19,7 +20,7 @@ public class HttpProxy {
         try (ServerSocket server = new ServerSocket(port)) {
             while (!stop) {
                 Socket origin = server.accept();
-                LOGGER.info(() -> "Open: " + origin);
+                LOGGER.info(() -> MiddleCommunicator.TEXT_BLUE + "Open: " + origin + MiddleCommunicator.TEXT_RESET);
                 origin.setSoTimeout(TIMEOUT);
                 Socket remote = new Socket();
                 remote.setSoTimeout(TIMEOUT);

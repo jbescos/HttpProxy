@@ -9,7 +9,7 @@
     <description>Simple HTTP proxy</description>
 
     <properties>
-        <java.version>11</java.version>
+        <java.version>19</java.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
     </properties>
@@ -21,6 +21,7 @@
                 <configuration>
                     <source>${java.version}</source>
                     <target>${java.version}</target>
+                    <compilerArgument>--enable-preview</compilerArgument>
                 </configuration>
             </plugin>
             <plugin>
