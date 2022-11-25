@@ -10,11 +10,12 @@ import java.util.logging.Logger;
 public class HttpProxy {
     
     private static final Logger LOGGER = Logger.getLogger(HttpProxy.class.getName());
-    private static final int TIMEOUT = 5000;
+    private static final int TIMEOUT = 60000;
     private final ExecutorService executor = Executors.newCachedThreadPool();
     private volatile boolean stop = false;
 
     public void start(int port) throws IOException {
+        LOGGER.info("Listening connections in port: " + port);
         try (ServerSocket server = new ServerSocket(port)) {
             while (!stop) {
                 Socket origin = server.accept();

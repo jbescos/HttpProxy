@@ -34,11 +34,15 @@ public class MiddleCommunicator {
         executor.submit(reader);
     }
 
-    public void stop(Socket socket) {
+    public void stop(Socket socket, Exception exception) {
         if (!socket.isClosed()) {
             try {
                 socket.close();
-                LOGGER.info("Close " + socket);
+                if (exception == null) {
+                    LOGGER.info("Close: " + socket);
+                } else {
+                    LOGGER.info("Close: " + socket + ". Reason: " + exception);
+                }
             } catch (IOException e) {
                 LOGGER.log(Level.SEVERE, "Cannot close " + socket + ": " + e.getMessage());
             }
@@ -51,6 +55,7 @@ public class MiddleCommunicator {
         public void run() {
             // 1 MB
             byte[] buffer = new byte[BUFFER_SIZE];
+            Exception exception = null;
             try {
                 int read;
                 OriginInfo originInfo = null;
@@ -63,9 +68,9 @@ public class MiddleCommunicator {
                             originInfo = getOriginInfo(buffer, read);
                             if (originInfo.respondOrigin()) {
                                 // Respond origin
-                                String response = originInfo.protocol + " 200 Connection established\n\n";
+                                String response = "HTTP/1.0 200 Connection established\r\n\r\n";
                                 writerSocket.connect(new InetSocketAddress(originInfo.host, originInfo.port));
-                                LOGGER.info(() -> "Open: " + writerSocket);
+                                LOGGER.info(() -> " Open: " + writerSocket);
                                 readerSocket.getOutputStream()
                                         .write(response.getBytes());
                                 // Start listening from origin
@@ -82,10 +87,11 @@ public class MiddleCommunicator {
                     }
                 }
             } catch (IOException e) {
+                exception = e;
 //                LOGGER.log(Level.SEVERE, e.getMessage(), e);
             } finally {
-                stop(readerSocket);
-                stop(writerSocket);
+                stop(readerSocket, exception);
+                stop(writerSocket, exception);
             }
         }
     }
