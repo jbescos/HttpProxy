@@ -19,7 +19,8 @@ public class Main {
         if (args.length > 0) {
             port = Integer.parseInt(args[0]);
         }
-        HttpProxyServer.build(port).run();
+        HttpProxy proxy = new HttpProxy();
+        proxy.start(port);
     }
 
 }
