@@ -11,6 +11,10 @@ import java.util.logging.Logger;
 public class MiddleCommunicator {
 
     private static final Logger LOGGER = Logger.getLogger(MiddleCommunicator.class.getName());
+    static final String TEXT_RESET  = "\u001B[0m";
+    static final String TEXT_BLUE   = "\u001B[34m";
+    static final String TEXT_RED    = "\u001B[31m";
+    static final String TEXT_GREEN  = "\u001B[32m";
     private static final int BUFFER_SIZE = 1024 * 1024;
     private static final String HOST = "Host: ";
     private static final byte NEW_LINE = (byte) '\n';
@@ -39,9 +43,9 @@ public class MiddleCommunicator {
             try {
                 socket.close();
                 if (exception == null) {
-                    LOGGER.info("Close: " + socket);
+                    LOGGER.info(TEXT_GREEN + "Close: " + socket + TEXT_RESET);
                 } else {
-                    LOGGER.info("Close: " + socket + ". Reason: " + exception);
+                    LOGGER.info(TEXT_RED + "Close: " + socket + ". Reason: " + exception + TEXT_RESET);
                 }
             } catch (IOException e) {
                 LOGGER.log(Level.SEVERE, "Cannot close " + socket + ": " + e.getMessage());
@@ -70,7 +74,7 @@ public class MiddleCommunicator {
                                 // Respond origin
                                 String response = "HTTP/1.0 200 Connection established\r\n\r\n";
                                 writerSocket.connect(new InetSocketAddress(originInfo.host, originInfo.port));
-                                LOGGER.info(() -> " Open: " + writerSocket);
+                                LOGGER.info(() -> TEXT_BLUE + "Open: " + writerSocket + TEXT_RESET);
                                 readerSocket.getOutputStream()
                                         .write(response.getBytes());
                                 // Start listening from origin

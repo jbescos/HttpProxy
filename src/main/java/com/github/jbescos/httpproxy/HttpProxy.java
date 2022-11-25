@@ -19,7 +19,7 @@ public class HttpProxy {
         try (ServerSocket server = new ServerSocket(port)) {
             while (!stop) {
                 Socket origin = server.accept();
-                LOGGER.info(() -> "Open: " + origin);
+                LOGGER.info(() -> MiddleCommunicator.TEXT_BLUE + "Open: " + origin + MiddleCommunicator.TEXT_RESET);
                 origin.setSoTimeout(TIMEOUT);
                 Socket remote = new Socket();
                 remote.setSoTimeout(TIMEOUT);
