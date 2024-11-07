@@ -65,21 +65,23 @@ public class MiddleCommunicator {
                 OriginInfo originInfo = null;
                 while ((read = readerSocket.getInputStream().read(buffer)) != -1) {
                     final int readB = read;
-                    LOGGER.finest(() -> readerSocket + " read " + readB + " bytes");
-                    LOGGER.finest(() -> new String(buffer, 0, readB));
+                    LOGGER.info(() -> readerSocket + " read " + readB + " bytes");
+                    LOGGER.info(() -> new String(buffer, 0, readB));
                     if (originToRemote) {
                         if (originInfo == null) {
                             originInfo = getOriginInfo(buffer, read);
+                            writerSocket.connect(new InetSocketAddress(originInfo.host, originInfo.port));
+                            LOGGER.info(() -> TEXT_BLUE + "Open: " + writerSocket + TEXT_RESET);
+                            // Start listening from origin
+                            callback.start();
                             if (originInfo.respondOrigin()) {
                                 // Respond origin
                                 String response = "HTTP/1.0 200 Connection established\r\n\r\n";
-                                writerSocket.connect(new InetSocketAddress(originInfo.host, originInfo.port));
-                                LOGGER.info(() -> TEXT_BLUE + "Open: " + writerSocket + TEXT_RESET);
-                                readerSocket.getOutputStream()
-                                        .write(response.getBytes());
-                                // Start listening from origin
-                                callback.start();
+                                readerSocket.getOutputStream().write(response.getBytes());
                                 readerSocket.getOutputStream().flush();
+                            } else {
+                                writerSocket.getOutputStream().write(buffer, 0, read);
+                                writerSocket.getOutputStream().flush();
                             }
                         } else {
                             writerSocket.getOutputStream().write(buffer, 0, read);
